@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import os
 
 # --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
@@ -13,55 +12,53 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
     html, body, [class*="css"] { font-family: 'Roboto', sans-serif; background-color: #F8F9FB; }
     .stApp { background-color: #F8F9FB; }
-    
+   
     /* Главный заголовок */
-    .main-header { 
-        color: #1C1B1F; 
-        font-size: 32px; 
-        font-weight: 700; 
-        margin-bottom: 24px; 
-        margin-top: 10px; 
+    .main-header {
+        color: #1C1B1F;
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 24px;
+        margin-top: 10px;
     }
-    
+   
     /* Метрики */
     [data-testid="stMetricValue"] { color: #6750A4; font-weight: 700; font-size: 38px!important; }
     [data-testid="stMetricLabel"] { font-size: 14px!important; color: #49454F; }
-    
+   
     /* Запрет ввода в selectbox */
-    .stSelectbox input { 
-        pointer-events: none; 
-        caret-color: transparent; 
+    .stSelectbox input {
+        pointer-events: none;
+        caret-color: transparent;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # --- ЗАГРУЗКА ДАННЫХ ---
 @st.cache_data(show_spinner=False)
-def load_data_pure():
+def load_data():
+    # На Streamlit Cloud файлы должны лежать в корне репозитория
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    m_p = os.path.join(script_dir, "vprdashboard", "marks.xlsx")
-    s_p = os.path.join(script_dir, "vprdashboard", "scores.xlsx")
+    marks_path = os.path.join(script_dir, "marks.xlsx")
+    scores_path = os.path.join(script_dir, "scores.xlsx")
     
-    if not os.path.exists(m_p):
-        m_p = os.path.join(script_dir, "marks.xlsx")
-        s_p = os.path.join(script_dir, "scores.xlsx")
-    
-    if not os.path.exists(m_p) or not os.path.exists(s_p):
+    if not os.path.exists(marks_path) or not os.path.exists(scores_path):
+        st.error("Файлы не найдены. Проверьте наличие marks.xlsx и scores.xlsx в корне репозитория.")
         return None, None
     
     try:
-        df_m = pd.read_excel(m_p, engine="calamine")
-        df_s = pd.read_excel(s_p, engine="calamine")
-        return df_m, df_s
+        # Используем стандартный engine (openpyxl), он уже есть на Streamlit Cloud
+        df_marks = pd.read_excel(marks_path)
+        df_scores = pd.read_excel(scores_path)
+        return df_marks, df_scores
     except Exception as e:
         st.error(f"Ошибка чтения файлов: {e}")
         return None, None
 
 with st.spinner("Загрузка данных ВПР..."):
-    df_marks, df_scores = load_data_pure()
+    df_marks, df_scores = load_data()
 
 if df_marks is None or df_scores is None:
-    st.error("Файлы не найдены. Проверьте наличие marks.xlsx и scores.xlsx.")
     st.stop()
 
 st.markdown("<div class='main-header'>Аналитика ВПР</div>", unsafe_allow_html=True)
@@ -76,21 +73,18 @@ with f1:
     sel_year = st.selectbox("Год", years, index=default_year_idx, key="year")
 
 year_df = df_marks[df_marks['Год'] == sel_year]
-
 classes = sorted(year_df['Класс'].unique())
 default_class_idx = 0 if st.session_state.get("class") not in classes else classes.index(st.session_state.get("class", classes[0]))
 with f2:
     sel_class = st.selectbox("Класс", classes, index=default_class_idx, key="class")
 
 class_df = year_df[year_df['Класс'] == sel_class]
-
 subjects = sorted(class_df['Предмет'].unique())
 default_subj_idx = 0 if st.session_state.get("subj") not in subjects else subjects.index(st.session_state.get("subj", subjects[0]))
 with f3:
     sel_subj = st.selectbox("Предмет", subjects, index=default_subj_idx, key="subj")
 
 subj_df = class_df[class_df['Предмет'] == sel_subj]
-
 mun_options = ["Все"] + sorted(subj_df['Муниципалитет'].unique().tolist())
 default_mun_idx = 0 if st.session_state.get("mun") not in mun_options else mun_options.index(st.session_state.get("mun", "Все"))
 with f4:
@@ -101,7 +95,6 @@ if sel_mun == "Все":
 else:
     mun_df = subj_df[subj_df['Муниципалитет'] == sel_mun]
     oo_options = ["Все"] + sorted(mun_df['ОО'].unique().tolist())
-
 default_oo_idx = 0 if st.session_state.get("oo") not in oo_options else oo_options.index(st.session_state.get("oo", "Все"))
 with f5:
     sel_oo = st.selectbox("ОО (Школа)", oo_options, index=default_oo_idx, key="oo")
@@ -123,6 +116,7 @@ if m_sub.empty:
 # --- СВОДНЫЕ ПОКАЗАТЕЛИ ---
 st.subheader("Сводные показатели")
 total_p = m_sub['Кол-во участников'].sum()
+
 if total_p == 0:
     perc_2 = perc_3 = perc_4 = perc_5 = 0
 else:
@@ -135,7 +129,6 @@ else:
     perc_5 = percentages.get('5', 0)
 
 col_params, col_participants, col_quality, col_success = st.columns(4)
-
 with col_params:
     st.markdown(f"<p style='margin: 0; padding: 0;'><b>Год:</b> {sel_year}</p>", unsafe_allow_html=True)
     st.markdown(f"<p style='margin: 0; padding: 0;'><b>Класс:</b> {sel_class}</p>", unsafe_allow_html=True)
@@ -161,14 +154,20 @@ g1, g2 = st.columns(2)
 
 with g1:
     st.subheader("Статистика по отметкам (%)")
-    fig_m = px.bar(x=['2','3','4','5'], y=[perc_2, perc_3, perc_4, perc_5], color=['2','3','4','5'],
-                   color_discrete_map={'2':'#F44336','3':'#FF9800','4':'#4CAF50','5':'#2196F3'},
-                   text=[f"{perc_2:.1f}%", f"{perc_3:.1f}%", f"{perc_4:.1f}%", f"{perc_5:.1f}%"])
+    fig_m = px.bar(
+        x=['2', '3', '4', '5'],
+        y=[perc_2, perc_3, perc_4, perc_5],
+        color=['2', '3', '4', '5'],
+        color_discrete_map={'2': '#F44336', '3': '#FF9800', '4': '#4CAF50', '5': '#2196F3'},
+        text=[f"{perc_2:.1f}%", f"{perc_3:.1f}%", f"{perc_4:.1f}%", f"{perc_5:.1f}%"]
+    )
     fig_m.update_traces(textposition='outside')
-    fig_m.update_layout(height=350, showlegend=False, margin=dict(l=10,r=10,t=10,b=10),
-                        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                        yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
-                        xaxis=dict(title="Отметка", tickmode='array', tickvals=['2','3','4','5'], ticktext=['2','3','4','5']))
+    fig_m.update_layout(
+        height=350, showlegend=False, margin=dict(l=10, r=10, t=10, b=10),
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
+        xaxis=dict(title="Отметка", tickmode='array', tickvals=['2', '3', '4', '5'], ticktext=['2', '3', '4', '5'])
+    )
     st.plotly_chart(fig_m, use_container_width=True)
 
 with g2:
@@ -183,9 +182,13 @@ with g2:
     max_score = max(map(int, score_cols)) if score_cols else 0
 
     logins = m_sub['Логин'].unique()
-    s_agg = df_scores[(df_scores['Логин'].isin(logins)) & (df_scores['Год'] == sel_year) &
-                      (df_scores['Класс'] == sel_class) & (df_scores['Предмет'] == sel_subj)]
-    
+    s_agg = df_scores[
+        (df_scores['Логин'].isin(logins)) &
+        (df_scores['Год'] == sel_year) &
+        (df_scores['Класс'] == sel_class) &
+        (df_scores['Предмет'] == sel_subj)
+    ]
+
     if max_score == 0:
         st.info("Нет данных по баллам для этого предмета")
     else:
@@ -194,22 +197,25 @@ with g2:
         for c in score_cols:
             val = ((s_agg[c] / 100) * s_agg['Кол-во участников']).sum() / total_s * 100
             y_vals.append(val)
-        
+
         full_x = list(range(0, max_score + 1))
         full_y = [0.0] * len(full_x)
         score_map = {int(c): y for c, y in zip(score_cols, y_vals)}
         for i in full_x:
             full_y[i] = score_map.get(i, 0.0)
-        
+
         fig_s = px.bar(x=full_x, y=full_y, color_discrete_sequence=['#6750A4'])
+
         step = 5
         tickvals = list(range(0, max_score + 1, step))
         if max_score % step != 0:
             tickvals.append(max_score)
         ticktext = [f'<b>{val}</b>' if val in [0, max_score] else str(val) for val in tickvals]
-        
-        fig_s.update_layout(height=350, margin=dict(l=10,r=10,t=10,b=10),
-                            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                            yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
-                            xaxis=dict(title="Первичный балл", tickvals=tickvals, ticktext=ticktext))
+
+        fig_s.update_layout(
+            height=350, margin=dict(l=10, r=10, t=10, b=10),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+            yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
+            xaxis=dict(title="Первичный балл", tickvals=tickvals, ticktext=ticktext)
+        )
         st.plotly_chart(fig_s, use_container_width=True)
