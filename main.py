@@ -6,30 +6,83 @@ import os
 # --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
 st.set_page_config(page_title="Аналитика ВПР", layout="wide", initial_sidebar_state="collapsed")
 
-# --- STYLING (Material Design 3 basics without cards) ---
+# --- STYLING (Адаптировано для светлой и тёмной тем) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Roboto', sans-serif; background-color: #F8F9FB; }
+    
+    /* Базовые стили для светлой темы */
+    html, body, [class*="css"] { 
+        font-family: 'Roboto', sans-serif; 
+        background-color: #F8F9FB; 
+        color: #1C1B1F; 
+    }
     .stApp { background-color: #F8F9FB; }
-   
+    
     /* Главный заголовок */
     .main-header {
-        color: #1C1B1F;
         font-size: 32px;
         font-weight: 700;
-        margin-bottom: 24px;
+        margin-bottom: 12px;  /* Уменьшили отступ */
         margin-top: 10px;
     }
-   
+    
     /* Метрики */
-    [data-testid="stMetricValue"] { color: #6750A4; font-weight: 700; font-size: 38px!important; }
-    [data-testid="stMetricLabel"] { font-size: 14px!important; color: #49454F; }
-   
+    [data-testid="stMetricValue"] { 
+        color: #6750A4; 
+        font-weight: 700; 
+        font-size: 38px!important; 
+    }
+    [data-testid="stMetricLabel"] { 
+        font-size: 14px!important; 
+        color: #49454F; 
+    }
+    
+    /* Подписи под метриками */
+    .metric-sub { 
+        margin-top: -20px;  /* Уплотнили */
+        margin-bottom: 0; 
+        color: #8B8B8D; 
+        font-size: 14px; 
+    }
+    
+    /* Заголовки разделов */
+    [data-testid="stHeader"] {
+        margin-bottom: 8px;  /* Уменьшили отступы */
+    }
+    
+    /* HR линии */
+    hr {
+        margin: 10px 0 !important;  /* Уплотнили */
+        border: 1px solid #E0E0E0;
+    }
+    
     /* Запрет ввода в selectbox */
     .stSelectbox input {
         pointer-events: none;
         caret-color: transparent;
+    }
+    
+    /* Адаптация для тёмной темы */
+    @media (prefers-color-scheme: dark) {
+        html, body, [class*="css"] { 
+            background-color: #121212; 
+            color: #E6E6E6; 
+        }
+        .stApp { background-color: #121212; }
+        
+        /* Корректировка цветов текста и элементов */
+        .main-header { color: #E6E6E6; }
+        [data-testid="stMetricValue"] { color: #A688FF; }  /* Светлее фиолетовый для видимости */
+        [data-testid="stMetricLabel"] { color: #B3B3B3; }
+        .metric-sub { color: #A0A0A0; }
+        hr { border-color: #333333; }
+        
+        /* Графики Plotly: фон и текст */
+        .js-plotly-plot .plotly .modebar { fill: #E6E6E6; }
+        .js-plotly-plot .plotly .bg { fill: #121212; }
+        .js-plotly-plot .plotly .axislabels { fill: #E6E6E6; }
+        .js-plotly-plot .plotly .ticklabels { fill: #E6E6E6; }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -37,7 +90,6 @@ st.markdown("""
 # --- ЗАГРУЗКА ДАННЫХ ---
 @st.cache_data(show_spinner=False)
 def load_data():
-    # На Streamlit Cloud файлы должны лежать в корне репозитория
     script_dir = os.path.dirname(os.path.abspath(__file__))
     marks_path = os.path.join(script_dir, "marks.xlsx")
     scores_path = os.path.join(script_dir, "scores.xlsx")
@@ -47,7 +99,6 @@ def load_data():
         return None, None
     
     try:
-        # Используем стандартный engine (openpyxl), он уже есть на Streamlit Cloud
         df_marks = pd.read_excel(marks_path)
         df_scores = pd.read_excel(scores_path)
         return df_marks, df_scores
@@ -99,7 +150,7 @@ default_oo_idx = 0 if st.session_state.get("oo") not in oo_options else oo_optio
 with f5:
     sel_oo = st.selectbox("ОО (Школа)", oo_options, index=default_oo_idx, key="oo")
 
-st.markdown("<hr style='border:1px solid #E0E0E0; margin: 20px 0;'>", unsafe_allow_html=True)
+st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- ФИЛЬТРАЦИЯ ---
 m_sub = subj_df.copy()
@@ -141,13 +192,13 @@ with col_participants:
 
 with col_quality:
     st.metric("Качество знаний", f"{perc_4 + perc_5:.1f}%")
-    st.markdown("<p style='margin-top: -24px; margin-bottom: 0; color: #8B8B8D; font-size: 14px;'>Отметки '4' и '5'</p>", unsafe_allow_html=True)
+    st.markdown("<p class='metric-sub'>Отметки '4' и '5'</p>", unsafe_allow_html=True)
 
 with col_success:
     st.metric("Успеваемость", f"{perc_3 + perc_4 + perc_5:.1f}%")
-    st.markdown("<p style='margin-top: -24px; margin-bottom: 0; color: #8B8B8D; font-size: 14px;'>Без двоек</p>", unsafe_allow_html=True)
+    st.markdown("<p class='metric-sub'>Без двоек</p>", unsafe_allow_html=True)
 
-st.markdown("<hr style='border:1px solid #E0E0E0; margin: 20px 0;'>", unsafe_allow_html=True)
+st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- ГРАФИКИ ---
 g1, g2 = st.columns(2)
@@ -163,8 +214,11 @@ with g1:
     )
     fig_m.update_traces(textposition='outside')
     fig_m.update_layout(
-        height=350, showlegend=False, margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        height=300,  # Уменьшили высоту для уплотнения
+        showlegend=False, 
+        margin=dict(l=10, r=10, t=10, b=10),
+        paper_bgcolor='rgba(0,0,0,0)', 
+        plot_bgcolor='rgba(0,0,0,0)',
         yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
         xaxis=dict(title="Отметка", tickmode='array', tickvals=['2', '3', '4', '5'], ticktext=['2', '3', '4', '5'])
     )
@@ -213,8 +267,10 @@ with g2:
         ticktext = [f'<b>{val}</b>' if val in [0, max_score] else str(val) for val in tickvals]
 
         fig_s.update_layout(
-            height=350, margin=dict(l=10, r=10, t=10, b=10),
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+            height=300,  # Уменьшили высоту
+            margin=dict(l=10, r=10, t=10, b=10),
+            paper_bgcolor='rgba(0,0,0,0)', 
+            plot_bgcolor='rgba(0,0,0,0)',
             yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
             xaxis=dict(title="Первичный балл", tickvals=tickvals, ticktext=ticktext)
         )
