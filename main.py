@@ -216,7 +216,7 @@ st.markdown("<hr>", unsafe_allow_html=True)
 g1, g2 = st.columns(2)
 
 with g1:
-    st.subheader("Статистика по отметкам (%)")
+    st.subheader("Статистика по отметкам")
     max_perc = max([perc_2, perc_3, perc_4, perc_5])
     fig_m = px.bar(
         x=['2','3','4','5'], y=[perc_2, perc_3, perc_4, perc_5], color=['2','3','4','5'],
@@ -238,7 +238,7 @@ with g1:
     })
 
 with g2:
-    st.subheader("Распределение первичных баллов (%)")
+    st.subheader("Распределение первичных баллов")
     sub_scores = df_scores[
         (df_scores['Год'] == sel_year) &
         (df_scores['Класс'] == sel_class) &
@@ -285,3 +285,4 @@ with g2:
             'modeBarButtonsToRemove': ['zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian', 'toggleSpikelines'],
             'displaylogo': False
         })
+
