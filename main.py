@@ -155,21 +155,42 @@ default_oo_idx = 0 if st.session_state.get("oo") not in oo_options else oo_optio
 with f5:
     sel_oo = st.selectbox("ОО (Школа)", oo_options, index=default_oo_idx, key="oo")
 
+animate = st.checkbox("Анимировать графики по годам")
+
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- ФИЛЬТРАЦИЯ ---
-m_sub = subj_df.copy()
-if sel_mun != "Все":
-    m_sub = m_sub[m_sub['Муниципалитет'] == sel_mun]
-if sel_oo != "Все":
-    m_sub = m_sub[m_sub['ОО'] == sel_oo]
+if animate:
+    # Для анимации - фильтр без года
+    filtered_marks = df_marks[(df_marks['Класс'] == sel_class) & (df_marks['Предмет'] == sel_subj)]
+    filtered_scores = df_scores[(df_scores['Класс'] == sel_class) & (df_scores['Предмет'] == sel_subj)]
+else:
+    filtered_marks = subj_df.copy()
+    filtered_scores = df_scores[
+        (df_scores['Год'] == sel_year) &
+        (df_scores['Класс'] == sel_class) &
+        (df_scores['Предмет'] == sel_subj)
+    ]
 
-if m_sub.empty:
+if sel_mun != "Все":
+    filtered_marks = filtered_marks[filtered_marks['Муниципалитет'] == sel_mun]
+    filtered_scores = filtered_scores[filtered_scores['Муниципалитет'] == sel_mun]  # Предполагаем, что df_scores имеет 'Муниципалитет'
+if sel_oo != "Все":
+    filtered_marks = filtered_marks[filtered_marks['ОО'] == sel_oo]
+    filtered_scores = filtered_scores[filtered_scores['ОО'] == sel_oo]  # Предполагаем, что df_scores имеет 'ОО'
+
+if filtered_marks.empty:
     st.warning("Нет данных. Попробуйте изменить параметры в фильтрах.")
     st.stop()
 
 # --- СВОДНЫЕ ПОКАЗАТЕЛИ ---
 st.subheader("Сводные показатели")
+if animate:
+    # Для анимации показываем для последнего года или среднее, но чтобы просто, для выбранного sel_year
+    m_sub = filtered_marks[filtered_marks['Год'] == sel_year]
+else:
+    m_sub = filtered_marks
+
 total_p = m_sub['Кол-во участников'].sum()
 
 if total_p == 0:
@@ -217,73 +238,129 @@ g1, g2 = st.columns(2)
 
 with g1:
     st.subheader("Статистика по отметкам (%)")
-    fig_m = px.bar(
-        x=['2', '3', '4', '5'],
-        y=[perc_2, perc_3, perc_4, perc_5],
-        color=['2', '3', '4', '5'],
-        color_discrete_map={'2': '#F44336', '3': '#FF9800', '4': '#4CAF50', '5': '#2196F3'},
-        text=[f"{perc_2:.1f}%", f"{perc_3:.1f}%", f"{perc_4:.1f}%", f"{perc_5:.1f}%"]
-    )
-    fig_m.update_traces(textposition='outside')
-    fig_m.update_layout(
-        height=300,
-        showlegend=False,
-        margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
-        xaxis=dict(title="Отметка", tickmode='array', tickvals=['2', '3', '4', '5'], ticktext=['2', '3', '4', '5'])
-    )
-    st.plotly_chart(fig_m, use_container_width=True)
-
-with g2:
-    st.subheader("Распределение первичных баллов (%)")
-    sub_scores = df_scores[
-        (df_scores['Год'] == sel_year) &
-        (df_scores['Класс'] == sel_class) &
-        (df_scores['Предмет'] == sel_subj)
-    ]
-    score_cols = [col for col in sub_scores.columns if col.isdigit() and 0 <= int(col) <= 39 and sub_scores[col].notna().any()]
-    score_cols.sort(key=int)
-    max_score = max(map(int, score_cols)) if score_cols else 0
-
-    logins = m_sub['Логин'].unique()
-    s_agg = df_scores[
-        (df_scores['Логин'].isin(logins)) &
-        (df_scores['Год'] == sel_year) &
-        (df_scores['Класс'] == sel_class) &
-        (df_scores['Предмет'] == sel_subj)
-    ]
-
-    if max_score == 0:
-        st.info("Нет данных по баллам для этого предмета")
+    if animate:
+        # Подготовка данных для анимации
+        ani_data = []
+        grouped = filtered_marks.groupby('Год')
+        for год, group in grouped:
+            total_p = group['Кол-во участников'].sum()
+            if total_p == 0:
+                continue
+            weights = group['Кол-во участников']
+            abs_counts = ((group[['2', '3', '4', '5']] / 100).multiply(weights, axis=0)).sum()
+            percentages = (abs_counts / total_p * 100).round(1)
+            perc_2 = percentages.get('2', 0)
+            perc_3 = percentages.get('3', 0)
+            perc_4 = percentages.get('4', 0)
+            perc_5 = percentages.get('5', 0)
+            ani_data.append({'Год': год, 'Отметка': '2', 'Доля': perc_2})
+            ani_data.append({'Год': год, 'Отметка': '3', 'Доля': perc_3})
+            ani_data.append({'Год': год, 'Отметка': '4', 'Доля': perc_4})
+            ani_data.append({'Год': год, 'Отметка': '5', 'Доля': perc_5})
+        df_ani = pd.DataFrame(ani_data)
+        if df_ani.empty:
+            st.info("Нет данных для анимации.")
+        else:
+            fig_m = px.bar(df_ani, x='Отметка', y='Доля', color='Отметка',
+                           color_discrete_map={'2':'#F44336','3':'#FF9800','4':'#4CAF50','5':'#2196F3'},
+                           animation_frame='Год', text='Доля', range_y=[0, 100])
+            fig_m.update_traces(textposition='outside')
+            fig_m.update_layout(height=350, showlegend=False, margin=dict(l=10,r=10,t=10,b=10),
+                                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                                yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
+                                xaxis=dict(title="Отметка"))
+            st.plotly_chart(fig_m, use_container_width=True)
     else:
-        total_s = s_agg['Кол-во участников'].sum() or 1
-        y_vals = []
-        for c in score_cols:
-            val = ((s_agg[c] / 100) * s_agg['Кол-во участников']).sum() / total_s * 100
-            y_vals.append(val)
-
-        full_x = list(range(0, max_score + 1))
-        full_y = [0.0] * len(full_x)
-        score_map = {int(c): y for c, y in zip(score_cols, y_vals)}
-        for i in full_x:
-            full_y[i] = score_map.get(i, 0.0)
-
-        fig_s = px.bar(x=full_x, y=full_y, color_discrete_sequence=['#6750A4'])
-
-        step = 5
-        tickvals = list(range(0, max_score + 1, step))
-        if max_score % step != 0:
-            tickvals.append(max_score)
-        ticktext = [f'<b>{val}</b>' if val in [0, max_score] else str(val) for val in tickvals]
-
-        fig_s.update_layout(
+        fig_m = px.bar(
+            x=['2', '3', '4', '5'],
+            y=[perc_2, perc_3, perc_4, perc_5],
+            color=['2', '3', '4', '5'],
+            color_discrete_map={'2': '#F44336', '3': '#FF9800', '4': '#4CAF50', '5': '#2196F3'},
+            text=[f"{perc_2:.1f}%", f"{perc_3:.1f}%", f"{perc_4:.1f}%", f"{perc_5:.1f}%"]
+        )
+        fig_m.update_traces(textposition='outside')
+        fig_m.update_layout(
             height=300,
+            showlegend=False,
             margin=dict(l=10, r=10, t=10, b=10),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
-            xaxis=dict(title="Первичный балл", tickvals=tickvals, ticktext=ticktext)
+            xaxis=dict(title="Отметка", tickmode='array', tickvals=['2', '3', '4', '5'], ticktext=['2', '3', '4', '5'])
         )
-        st.plotly_chart(fig_s, use_container_width=True)
+        st.plotly_chart(fig_m, use_container_width=True)
+
+with g2:
+    st.subheader("Распределение первичных баллов (%)")
+    if animate:
+        # Подготовка данных для анимации
+        ani_data_scores = []
+        grouped_scores = filtered_scores.groupby('Год')
+        for год, group in grouped_scores:
+            score_cols = [col for col in group.columns if col.isdigit() and 0 <= int(col) <= 39 and group[col].notna().any()]
+            score_cols.sort(key=int)
+            max_score = max(map(int, score_cols)) if score_cols else 0
+            if max_score == 0:
+                continue
+            total_s = group['Кол-во участников'].sum() or 1
+            y_vals = []
+            for c in score_cols:
+                val = ((group[c] / 100) * group['Кол-во участников']).sum() / total_s * 100
+                y_vals.append(val)
+            full_x = list(range(0, max_score + 1))
+            full_y = [0.0] * len(full_x)
+            score_map = {int(c): y for c, y in zip(score_cols, y_vals)}
+            for i in full_x:
+                full_y[i] = score_map.get(i, 0.0)
+                ani_data_scores.append({'Год': год, 'Балл': i, 'Доля': full_y[i]})
+        df_ani_scores = pd.DataFrame(ani_data_scores)
+        if df_ani_scores.empty:
+            st.info("Нет данных для анимации.")
+        else:
+            fig_s = px.bar(df_ani_scores, x='Балл', y='Доля', animation_frame='Год', range_y=[0, df_ani_scores['Доля'].max() + 5])
+            fig_s.update_layout(height=350, margin=dict(l=10,r=10,t=10,b=10),
+                                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                                yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
+                                xaxis=dict(title="Первичный балл"))
+            st.plotly_chart(fig_s, use_container_width=True)
+    else:
+        sub_scores = filtered_scores
+        score_cols = [col for col in sub_scores.columns if col.isdigit() and 0 <= int(col) <= 39 and sub_scores[col].notna().any()]
+        score_cols.sort(key=int)
+        max_score = max(map(int, score_cols)) if score_cols else 0
+
+        logins = m_sub['Логин'].unique()
+        s_agg = sub_scores[sub_scores['Логин'].isin(logins)]
+
+        if max_score == 0:
+            st.info("Нет данных по баллам для этого предмета")
+        else:
+            total_s = s_agg['Кол-во участников'].sum() or 1
+            y_vals = []
+            for c in score_cols:
+                val = ((s_agg[c] / 100) * s_agg['Кол-во участников']).sum() / total_s * 100
+                y_vals.append(val)
+
+            full_x = list(range(0, max_score + 1))
+            full_y = [0.0] * len(full_x)
+            score_map = {int(c): y for c, y in zip(score_cols, y_vals)}
+            for i in full_x:
+                full_y[i] = score_map.get(i, 0.0)
+
+            fig_s = px.bar(x=full_x, y=full_y, color_discrete_sequence=['#6750A4'])
+
+            step = 5
+            tickvals = list(range(0, max_score + 1, step))
+            if max_score % step != 0:
+                tickvals.append(max_score)
+            ticktext = [f'<b>{val}</b>' if val in [0, max_score] else str(val) for val in tickvals]
+
+            fig_s.update_layout(
+                height=300,
+                margin=dict(l=10, r=10, t=10, b=10),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
+                xaxis=dict(title="Первичный балл", tickvals=tickvals, ticktext=ticktext)
+            )
+            st.plotly_chart(fig_s, use_container_width=True)
