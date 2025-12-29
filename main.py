@@ -35,23 +35,27 @@ st.markdown("""
         padding-top: 8px;
     }
     
-    /* Метрики */
-    [data-testid="stMetricValue"] { 
-        color: #6750A4; 
-        font-weight: 700; 
-        font-size: 38px!important; 
+    /* Кастомные метрики */
+    .metric-container {
+        text-align: left;
     }
-    [data-testid="stMetricLabel"] { 
-        font-size: 14px!important; 
-        color: #49454F; 
+    .metric-label {
+        font-size: 14px;
+        color: #49454F;
+        font-weight: 500;
         margin-bottom: 4px;
     }
+    .metric-value {
+        color: #6750A4; 
+        font-weight: 700; 
+        font-size: 38px;
+    }
     
-    /* Пояснения в скобках — меньший шрифт, серый цвет */
+    /* Пояснения в скобках — inline, меньший шрифт, серый цвет */
     .metric-subtitle {
         font-size: 13px;
         color: #8B8B8D;
-        margin-left: 6px;
+        margin-left: 4px;
     }
     
     /* Заголовки разделов */
@@ -80,8 +84,8 @@ st.markdown("""
         .stApp { background-color: #121212; }
         
         .main-header { color: #E6E6E6; }
-        [data-testid="stMetricValue"] { color: #A688FF; }
-        [data-testid="stMetricLabel"] { color: #B3B3B3; }
+        .metric-value { color: #A688FF; }
+        .metric-label { color: #B3B3B3; }
         .metric-subtitle { color: #A0A0A0; }
         hr { border-color: #333333; }
     }
@@ -189,15 +193,22 @@ with col_params:
     st.markdown(f"<p style='margin: 0; padding: 0; white-space: nowrap; overflow: visible;'><b>ОО:</b> {sel_oo if sel_oo != 'Все' else 'Все'}</p>", unsafe_allow_html=True)
 
 with col_participants:
-    st.metric("Участники", f"{int(total_p)}")
+    st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+    st.markdown('<div class="metric-label">Участники</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-value">{int(total_p)}</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with col_quality:
-    st.metric("Качество знаний", f"{perc_4 + perc_5:.1f}%")
-    st.markdown("<span class='metric-subtitle'>(отметки «4» и «5»)</span>", unsafe_allow_html=True)
+    st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+    st.markdown('<div class="metric-label">Качество знаний<span class="metric-subtitle">(отметки «4» и «5»)</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-value">{perc_4 + perc_5:.1f}%</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with col_success:
-    st.metric("Успеваемость", f"{perc_3 + perc_4 + perc_5:.1f}%")
-    st.markdown("<span class='metric-subtitle'>(без двоек)</span>", unsafe_allow_html=True)
+    st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+    st.markdown('<div class="metric-label">Успеваемость<span class="metric-subtitle">(без двоек)</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-value">{perc_3 + perc_4 + perc_5:.1f}%</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
