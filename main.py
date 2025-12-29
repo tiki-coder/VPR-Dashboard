@@ -164,6 +164,7 @@ if sel_mun != "Все":
 if sel_oo != "Все":
     m_sub = m_sub[m_sub['ОО'] == sel_oo]
 
+# --- ПРОВЕРКА НА НАЛИЧИЕ ДАННЫХ ---
 if m_sub.empty:
     st.warning("Нет данных. Попробуйте изменить параметры в фильтрах.")
     st.stop()
@@ -184,7 +185,6 @@ else:
     perc_5 = percentages.get('5', 0)
 
 col_params, col_participants, col_quality, col_success = st.columns(4)
-
 with col_params:
     st.markdown(f"<p style='margin: 0; padding: 0;'><b>Год:</b> {sel_year}</p>", unsafe_allow_html=True)
     st.markdown(f"<p style='margin: 0; padding: 0;'><b>Класс:</b> {sel_class}</p>", unsafe_allow_html=True)
@@ -217,24 +217,25 @@ g1, g2 = st.columns(2)
 
 with g1:
     st.subheader("Статистика по отметкам (%)")
+    max_perc = max([perc_2, perc_3, perc_4, perc_5])
     fig_m = px.bar(
-        x=['2', '3', '4', '5'],
-        y=[perc_2, perc_3, perc_4, perc_5],
-        color=['2', '3', '4', '5'],
-        color_discrete_map={'2': '#F44336', '3': '#FF9800', '4': '#4CAF50', '5': '#2196F3'},
+        x=['2','3','4','5'], y=[perc_2, perc_3, perc_4, perc_5], color=['2','3','4','5'],
+        color_discrete_map={'2':'#F44336','3':'#FF9800','4':'#4CAF50','5':'#2196F3'},
         text=[f"{perc_2:.1f}%", f"{perc_3:.1f}%", f"{perc_4:.1f}%", f"{perc_5:.1f}%"]
     )
     fig_m.update_traces(textposition='outside')
     fig_m.update_layout(
-        height=300,
-        showlegend=False,
-        margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
-        xaxis=dict(title="Отметка", tickmode='array', tickvals=['2', '3', '4', '5'], ticktext=['2', '3', '4', '5'])
+        height=300, showlegend=False, margin=dict(l=10,r=10,t=10,b=10),
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        yaxis=dict(title="Доля учащихся (%)", ticksuffix="%", range=[0, max_perc + 10]),
+        xaxis=dict(title="Отметка", tickmode='array', tickvals=['2','3','4','5'], ticktext=['2','3','4','5'], fixedrange=True),
+        xaxis_fixedrange=True, yaxis_fixedrange=True
     )
-    st.plotly_chart(fig_m, use_container_width=True)
+    st.plotly_chart(fig_m, use_container_width=True, config={
+        'toImageButtonOptions': {'format': 'png'},
+        'modeBarButtonsToRemove': ['zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian', 'toggleSpikelines'],
+        'displaylogo': False
+    })
 
 with g2:
     st.subheader("Распределение первичных баллов (%)")
@@ -246,15 +247,10 @@ with g2:
     score_cols = [col for col in sub_scores.columns if col.isdigit() and 0 <= int(col) <= 39 and sub_scores[col].notna().any()]
     score_cols.sort(key=int)
     max_score = max(map(int, score_cols)) if score_cols else 0
-
     logins = m_sub['Логин'].unique()
-    s_agg = df_scores[
-        (df_scores['Логин'].isin(logins)) &
-        (df_scores['Год'] == sel_year) &
-        (df_scores['Класс'] == sel_class) &
-        (df_scores['Предмет'] == sel_subj)
-    ]
-
+    s_agg = df_scores[(df_scores['Логин'].isin(logins)) & (df_scores['Год'] == sel_year) &
+                      (df_scores['Класс'] == sel_class) & (df_scores['Предмет'] == sel_subj)]
+   
     if max_score == 0:
         st.info("Нет данных по баллам для этого предмета")
     else:
@@ -263,27 +259,28 @@ with g2:
         for c in score_cols:
             val = ((s_agg[c] / 100) * s_agg['Кол-во участников']).sum() / total_s * 100
             y_vals.append(val)
-
+       
         full_x = list(range(0, max_score + 1))
         full_y = [0.0] * len(full_x)
         score_map = {int(c): y for c, y in zip(score_cols, y_vals)}
         for i in full_x:
             full_y[i] = score_map.get(i, 0.0)
-
+       
+        max_y = max(full_y)
         fig_s = px.bar(x=full_x, y=full_y, color_discrete_sequence=['#6750A4'])
-
         step = 5
         tickvals = list(range(0, max_score + 1, step))
         if max_score % step != 0:
             tickvals.append(max_score)
         ticktext = [f'<b>{val}</b>' if val in [0, max_score] else str(val) for val in tickvals]
-
-        fig_s.update_layout(
-            height=300,
-            margin=dict(l=10, r=10, t=10, b=10),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
-            xaxis=dict(title="Первичный балл", tickvals=tickvals, ticktext=ticktext)
-        )
-        st.plotly_chart(fig_s, use_container_width=True)
+       
+        fig_s.update_layout(height=300, margin=dict(l=10,r=10,t=10,b=10),
+                            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                            yaxis=dict(title="Доля учащихся (%)", ticksuffix="%", range=[0, max_y + 5]),
+                            xaxis=dict(title="Первичный балл", tickvals=tickvals, ticktext=ticktext, fixedrange=True),
+                            xaxis_fixedrange=True, yaxis_fixedrange=True)
+        st.plotly_chart(fig_s, use_container_width=True, config={
+            'toImageButtonOptions': {'format': 'png'},
+            'modeBarButtonsToRemove': ['zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian', 'toggleSpikelines'],
+            'displaylogo': False
+        })
