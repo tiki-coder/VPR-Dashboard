@@ -19,14 +19,14 @@ st.markdown("""
     }
     .stApp { background-color: #F8F9FB; }
     
-    /* Убираем лишнее пространство сверху (учитывая панель GitHub/Streamlit) */
+    /* Убираем лишнее пространство сверху */
     .block-container {
-        padding-top: 1rem !important;   /* Минимальный отступ сверху */
+        padding-top: 1rem !important;   
         max-width: 100% !important;
     }
-    header { visibility: hidden; }      /* Скрываем стандартный header Streamlit, если мешает */
+    header { visibility: hidden; }
     
-    /* Главный заголовок — поднимаем выше */
+    /* Главный заголовок */
     .main-header {
         font-size: 32px;
         font-weight: 700;
@@ -47,12 +47,17 @@ st.markdown("""
         margin-bottom: 4px;
     }
     
-    /* Подзаголовки метрик в скобках — меньший шрифт */
+    /* Пояснения в скобках — сразу после названия метрики */
+    .metric-title-with-subtitle {
+        font-size: 14px;
+        color: #49454F;
+        margin-bottom: 0;
+    }
     .metric-subtitle {
         font-size: 13px;
         color: #8B8B8D;
-        margin-top: -8px;
-        margin-bottom: 0;
+        display: inline;
+        margin-left: 4px;
     }
     
     /* Заголовки разделов */
@@ -83,6 +88,7 @@ st.markdown("""
         .main-header { color: #E6E6E6; }
         [data-testid="stMetricValue"] { color: #A688FF; }
         [data-testid="stMetricLabel"] { color: #B3B3B3; }
+        .metric-title-with-subtitle { color: #B3B3B3; }
         .metric-subtitle { color: #A0A0A0; }
         hr { border-color: #333333; }
     }
@@ -114,7 +120,6 @@ with st.spinner("Загрузка данных ВПР..."):
 if df_marks is None or df_scores is None:
     st.stop()
 
-# Главный заголовок сразу под верхней панелью
 st.markdown("<div class='main-header'>Аналитика ВПР</div>", unsafe_allow_html=True)
 
 # --- ФИЛЬТРЫ ---
@@ -194,12 +199,16 @@ with col_participants:
     st.metric("Участники", f"{int(total_p)}")
 
 with col_quality:
-    st.metric("Качество знаний", f"{perc_4 + perc_5:.1f}%")
-    st.markdown("<p class='metric-subtitle'>(отметки «4» и «5»)</p>", unsafe_allow_html=True)
+    st.metric(
+        label="Качество знаний<span class='metric-subtitle'>(отметки «4» и «5»)</span>",
+        value=f"{perc_4 + perc_5:.1f}%"
+    )
 
 with col_success:
-    st.metric("Успеваемость", f"{perc_3 + perc_4 + perc_5:.1f}%")
-    st.markdown("<p class='metric-subtitle'>(без двоек)</p>", unsafe_allow_html=True)
+    st.metric(
+        label="Успеваемость<span class='metric-subtitle'>(без двоек)</span>",
+        value=f"{perc_3 + perc_4 + perc_5:.1f}%"
+    )
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
