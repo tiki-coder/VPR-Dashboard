@@ -47,17 +47,11 @@ st.markdown("""
         margin-bottom: 4px;
     }
     
-    /* Пояснения в скобках — сразу после названия метрики */
-    .metric-title-with-subtitle {
-        font-size: 14px;
-        color: #49454F;
-        margin-bottom: 0;
-    }
+    /* Пояснения в скобках — меньший шрифт, серый цвет */
     .metric-subtitle {
         font-size: 13px;
         color: #8B8B8D;
-        display: inline;
-        margin-left: 4px;
+        margin-left: 6px;
     }
     
     /* Заголовки разделов */
@@ -88,7 +82,6 @@ st.markdown("""
         .main-header { color: #E6E6E6; }
         [data-testid="stMetricValue"] { color: #A688FF; }
         [data-testid="stMetricLabel"] { color: #B3B3B3; }
-        .metric-title-with-subtitle { color: #B3B3B3; }
         .metric-subtitle { color: #A0A0A0; }
         hr { border-color: #333333; }
     }
@@ -199,16 +192,12 @@ with col_participants:
     st.metric("Участники", f"{int(total_p)}")
 
 with col_quality:
-    st.metric(
-        label="Качество знаний<span class='metric-subtitle'>(отметки «4» и «5»)</span>",
-        value=f"{perc_4 + perc_5:.1f}%"
-    )
+    st.metric("Качество знаний", f"{perc_4 + perc_5:.1f}%")
+    st.markdown("<span class='metric-subtitle'>(отметки «4» и «5»)</span>", unsafe_allow_html=True)
 
 with col_success:
-    st.metric(
-        label="Успеваемость<span class='metric-subtitle'>(без двоек)</span>",
-        value=f"{perc_3 + perc_4 + perc_5:.1f}%"
-    )
+    st.metric("Успеваемость", f"{perc_3 + perc_4 + perc_5:.1f}%")
+    st.markdown("<span class='metric-subtitle'>(без двоек)</span>", unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
