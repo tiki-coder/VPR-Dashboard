@@ -223,7 +223,7 @@ with g1:
         color_discrete_map={'2':'#F44336','3':'#FF9800','4':'#4CAF50','5':'#2196F3'},
         text=[f"{perc_2:.1f}%", f"{perc_3:.1f}%", f"{perc_4:.1f}%", f"{perc_5:.1f}%"]
     )
-    fig_m.update_traces(textposition='outside')
+    fig_m.update_traces(textposition='outside', hovertemplate='%{text}')
     fig_m.update_layout(
         height=300, showlegend=False, margin=dict(l=10,r=10,t=10,b=10),
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
@@ -268,6 +268,7 @@ with g2:
        
         max_y = max(full_y)
         fig_s = px.bar(x=full_x, y=full_y, color_discrete_sequence=['#6750A4'])
+        fig_s.update_traces(hovertemplate='%{y:.1f}%')
         step = 5
         tickvals = list(range(0, max_score + 1, step))
         if max_score % step != 0:
