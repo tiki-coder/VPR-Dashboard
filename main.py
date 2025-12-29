@@ -6,12 +6,12 @@ import os
 # --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
 st.set_page_config(page_title="Аналитика ВПР", layout="wide", initial_sidebar_state="collapsed")
 
-# --- STYLING (Адаптировано для светлой и тёмной тем) ---
+# --- STYLING (Адаптировано для светлой и тёмной тем + уплотнение) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
     
-    /* Базовые стили для светлой темы */
+    /* Базовые стили */
     html, body, [class*="css"] { 
         font-family: 'Roboto', sans-serif; 
         background-color: #F8F9FB; 
@@ -19,12 +19,20 @@ st.markdown("""
     }
     .stApp { background-color: #F8F9FB; }
     
-    /* Главный заголовок */
+    /* Убираем лишнее пространство сверху (учитывая панель GitHub/Streamlit) */
+    .block-container {
+        padding-top: 1rem !important;   /* Минимальный отступ сверху */
+        max-width: 100% !important;
+    }
+    header { visibility: hidden; }      /* Скрываем стандартный header Streamlit, если мешает */
+    
+    /* Главный заголовок — поднимаем выше */
     .main-header {
         font-size: 32px;
         font-weight: 700;
-        margin-bottom: 12px;  /* Уменьшили отступ */
-        margin-top: 10px;
+        margin-top: 0px !important;
+        margin-bottom: 12px;
+        padding-top: 8px;
     }
     
     /* Метрики */
@@ -36,24 +44,25 @@ st.markdown("""
     [data-testid="stMetricLabel"] { 
         font-size: 14px!important; 
         color: #49454F; 
+        margin-bottom: 4px;
     }
     
-    /* Подписи под метриками */
-    .metric-sub { 
-        margin-top: -20px;  /* Уплотнили */
-        margin-bottom: 0; 
-        color: #8B8B8D; 
-        font-size: 14px; 
+    /* Подзаголовки метрик в скобках — меньший шрифт */
+    .metric-subtitle {
+        font-size: 13px;
+        color: #8B8B8D;
+        margin-top: -8px;
+        margin-bottom: 0;
     }
     
     /* Заголовки разделов */
-    [data-testid="stHeader"] {
-        margin-bottom: 8px;  /* Уменьшили отступы */
+    h2, h3 {
+        margin-bottom: 8px !important;
     }
     
     /* HR линии */
     hr {
-        margin: 10px 0 !important;  /* Уплотнили */
+        margin: 12px 0 !important;
         border: 1px solid #E0E0E0;
     }
     
@@ -71,18 +80,11 @@ st.markdown("""
         }
         .stApp { background-color: #121212; }
         
-        /* Корректировка цветов текста и элементов */
         .main-header { color: #E6E6E6; }
-        [data-testid="stMetricValue"] { color: #A688FF; }  /* Светлее фиолетовый для видимости */
+        [data-testid="stMetricValue"] { color: #A688FF; }
         [data-testid="stMetricLabel"] { color: #B3B3B3; }
-        .metric-sub { color: #A0A0A0; }
+        .metric-subtitle { color: #A0A0A0; }
         hr { border-color: #333333; }
-        
-        /* Графики Plotly: фон и текст */
-        .js-plotly-plot .plotly .modebar { fill: #E6E6E6; }
-        .js-plotly-plot .plotly .bg { fill: #121212; }
-        .js-plotly-plot .plotly .axislabels { fill: #E6E6E6; }
-        .js-plotly-plot .plotly .ticklabels { fill: #E6E6E6; }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -112,9 +114,10 @@ with st.spinner("Загрузка данных ВПР..."):
 if df_marks is None or df_scores is None:
     st.stop()
 
+# Главный заголовок сразу под верхней панелью
 st.markdown("<div class='main-header'>Аналитика ВПР</div>", unsafe_allow_html=True)
 
-# --- ФИЛЬТРЫ С СОХРАНЕНИЕМ ЗНАЧЕНИЙ И ЗАЩИТОЙ ОТ СБРОСА ---
+# --- ФИЛЬТРЫ ---
 st.subheader("Фильтры")
 f1, f2, f3, f4, f5 = st.columns(5)
 
@@ -159,7 +162,6 @@ if sel_mun != "Все":
 if sel_oo != "Все":
     m_sub = m_sub[m_sub['ОО'] == sel_oo]
 
-# --- ПРОВЕРКА НА НАЛИЧИЕ ДАННЫХ ---
 if m_sub.empty:
     st.warning("Нет данных. Попробуйте изменить параметры в фильтрах.")
     st.stop()
@@ -180,6 +182,7 @@ else:
     perc_5 = percentages.get('5', 0)
 
 col_params, col_participants, col_quality, col_success = st.columns(4)
+
 with col_params:
     st.markdown(f"<p style='margin: 0; padding: 0;'><b>Год:</b> {sel_year}</p>", unsafe_allow_html=True)
     st.markdown(f"<p style='margin: 0; padding: 0;'><b>Класс:</b> {sel_class}</p>", unsafe_allow_html=True)
@@ -192,11 +195,11 @@ with col_participants:
 
 with col_quality:
     st.metric("Качество знаний", f"{perc_4 + perc_5:.1f}%")
-    st.markdown("<p class='metric-sub'>Отметки '4' и '5'</p>", unsafe_allow_html=True)
+    st.markdown("<p class='metric-subtitle'>(отметки «4» и «5»)</p>", unsafe_allow_html=True)
 
 with col_success:
     st.metric("Успеваемость", f"{perc_3 + perc_4 + perc_5:.1f}%")
-    st.markdown("<p class='metric-sub'>Без двоек</p>", unsafe_allow_html=True)
+    st.markdown("<p class='metric-subtitle'>(без двоек)</p>", unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -214,10 +217,10 @@ with g1:
     )
     fig_m.update_traces(textposition='outside')
     fig_m.update_layout(
-        height=300,  # Уменьшили высоту для уплотнения
-        showlegend=False, 
+        height=300,
+        showlegend=False,
         margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor='rgba(0,0,0,0)', 
+        paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
         xaxis=dict(title="Отметка", tickmode='array', tickvals=['2', '3', '4', '5'], ticktext=['2', '3', '4', '5'])
@@ -267,9 +270,9 @@ with g2:
         ticktext = [f'<b>{val}</b>' if val in [0, max_score] else str(val) for val in tickvals]
 
         fig_s.update_layout(
-            height=300,  # Уменьшили высоту
+            height=300,
             margin=dict(l=10, r=10, t=10, b=10),
-            paper_bgcolor='rgba(0,0,0,0)', 
+            paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             yaxis=dict(title="Доля учащихся (%)", ticksuffix="%"),
             xaxis=dict(title="Первичный балл", tickvals=tickvals, ticktext=ticktext)
