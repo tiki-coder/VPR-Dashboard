@@ -137,7 +137,7 @@ if df_marks.empty or df_scores.empty:
 
 st.markdown("<div class='main-header'>Аналитика ВПР</div>", unsafe_allow_html=True)
 
-# --- ПАНЕЛЬ ФИЛЬТРОВ (фиксированная, без надписи "Фильтры") ---
+# --- ПАНЕЛЬ ФИЛЬТРОВ (фиксированная) ---
 st.markdown('<div class="sticky-filters">', unsafe_allow_html=True)
 f1, f2, f3, f4, f5 = st.columns(5)
 
@@ -175,7 +175,7 @@ with f5:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Основной контент с отступом ---
+# --- Основной контент ---
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -190,7 +190,7 @@ if m_sub.empty:
     st.warning("Нет данных. Измените фильтры.")
     st.stop()
 
-# --- СВОДНЫЕ ПОКАЗАТЕЛИ (с капом 100%) ---
+# --- СВОДНЫЕ ПОКАЗАТЕЛИ ---
 st.subheader("Сводные показатели")
 total_p = m_sub['Кол-во участников'].sum()
 
@@ -236,7 +236,7 @@ with col_success:
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# --- ГРАФИКИ (оригинальные) ---
+# --- ГРАФИКИ ОТМЕТОК И БАЛЛОВ ---
 g1, g2 = st.columns(2)
 
 with g1:
@@ -253,14 +253,9 @@ with g1:
         height=300, showlegend=False, margin=dict(l=10,r=10,t=10,b=10),
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
         yaxis=dict(title="Доля учащихся (%)", ticksuffix="%", range=[0, max_perc + 10]),
-        xaxis=dict(title="Отметка", tickmode='array', tickvals=['2','3','4','5'], ticktext=['2','3','4','5'], fixedrange=True),
-        xaxis_fixedrange=True, yaxis_fixedrange=True
+        xaxis=dict(title="Отметка")
     )
-    st.plotly_chart(fig_m, use_container_width=True, config={
-        'toImageButtonOptions': {'format': 'png'},
-        'modeBarButtonsToRemove': ['zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian', 'toggleSpikelines'],
-        'displaylogo': False
-    })
+    st.plotly_chart(fig_m, use_container_width=True)
 
 with g2:
     st.subheader("Распределение первичных баллов")
@@ -269,18 +264,15 @@ with g2:
         (df_scores['Класс'] == sel_class) &
         (df_scores['Предмет'] == sel_subj)
     ]
-    score_cols = [col for col in sub_scores.columns if col.isdigit() and sub_scores[col].notna().any()]
+    score_cols = [col for col in sub_scores.columns if str(col).isdigit()]
     if score_cols:
         score_cols = sorted(score_cols, key=int)
-        max_score = int(score_cols[-1])
-    else:
-        max_score = 0
     
     logins = m_sub['Логин'].unique()
     s_agg = df_scores[(df_scores['Логин'].isin(logins)) & (df_scores['Год'] == sel_year) &
                       (df_scores['Класс'] == sel_class) & (df_scores['Предмет'] == sel_subj)]
     
-    if max_score == 0 or s_agg.empty:
+    if not score_cols or s_agg.empty:
         st.info("Нет данных по баллам для выбранных параметров")
     else:
         total_s = s_agg['Кол-во участников'].sum() or 1
@@ -303,49 +295,43 @@ with g2:
         )
         st.plotly_chart(fig_s, use_container_width=True)
 
-# --- РАЗДЕЛ ПРИЗНАКИ НЕОБЪЕКТИВНОСТИ (в самом низу) ---
+# --- РАЗДЕЛ ПРИЗНАКИ НЕОБЪЕКТИВНОСТИ ---
 st.markdown("<hr>", unsafe_allow_html=True)
 st.header("Признаки необъективности")
 
-marker_cols = ['4 РУ', '4 МА', '5 РУ', '5 МА']  # Подправьте, если названия колонок отличаются
+marker_cols = ['4 РУ', '4 МА', '5 РУ', '5 МА']
 marker_display = {'4 РУ': 'РУ4', '4 МА': 'МА4', '5 РУ': 'РУ5', '5 МА': 'МА5'}
 
-# Блок 1: Анализ выбранной школы
+# Блок 1
 if sel_oo == "Все":
-    st.info("👈 Выберите конкретную школу для детального анализа признаков необъективности")
+    st.info("👈 Выберите конкретную школу для анализа")
 else:
     school_logins = m_sub['Логин'].unique()
     if len(school_logins) != 1:
-        st.warning("У выбранной школы несколько логинов — анализ маркеров невозможен.")
+        st.warning("Несколько логинов у школы — анализ невозможен")
     else:
         login = school_logins[0]
         st.subheader(f"Анализ выбранной школы ({sel_year})")
-        
         bias_school = df_bias[(df_bias['Год'] == sel_year) & (df_bias['Логин'] == login)]
-        
         if bias_school.empty:
-            st.success("Признаки необъективности в текущем году не выявлены.")
+            st.success("Признаки необъективности не выявлены")
         else:
             row = bias_school.iloc[0]
             active_markers = [marker_display.get(col, col) for col in marker_cols if col in row.index and row[col] == 1]
             num_markers = sum(row.get(col, 0) for col in marker_cols if col in row.index)
-            
             if active_markers:
                 st.warning(f"Выявленные маркеры: {', '.join(active_markers)}")
             st.write(f"🔴 Количество маркеров: **{int(num_markers)}**")
         
-        # История за предыдущие 2 года
         prev_years = [y for y in [sel_year-1, sel_year-2] if y in df_bias['Год'].unique()]
         if prev_years:
             st.markdown("**Попадание в списки предыдущих лет**")
             for py in sorted(prev_years):
                 prev_row = df_bias[(df_bias['Год'] == py) & (df_bias['Логин'] == login)]
-                if not prev_row.empty:
-                    st.write(f"• {py} год: попадала в список")
-                else:
-                    st.write(f"• {py} год: не попадала")
+                status = "попадала в список" if not prev_row.empty else "не попадала"
+                st.write(f"• {py} год: {status}")
 
-# Блок 2: Доля ОО с признаками
+# Блок 2
 st.markdown("<hr>", unsafe_allow_html=True)
 st.subheader("Доля ОО с признаками необъективности (%) по муниципалитету")
 
@@ -359,13 +345,11 @@ for y in years_chart:
         bar_colors.append('#B0BEC5')
         continue
     
-    # Деноминатор: школы с Русским языком 4 класс
     ru4 = df_marks[(df_marks['Год'] == y) & (df_marks['Класс'] == 4) & (df_marks['Предмет'] == 'Русский язык')]
     if sel_mun != "Все":
         ru4 = ru4[ru4['Муниципалитет'] == sel_mun]
     total_schools = ru4['Логин'].nunique() if not ru4.empty else 1
     
-    # Числитель: школы с маркерами
     bias_y = df_bias[df_bias['Год'] == y]
     if sel_mun != "Все":
         bias_y = bias_y[bias_y['Муниципалитет'] == sel_mun]
@@ -383,7 +367,37 @@ fig_bias = px.bar(
     color_discrete_sequence=bar_colors
 )
 fig_bias.update_traces(textposition='outside')
-fig_bias.update_xaxes(type='category')  # Ключевой фикс — только целые годы без .5
+fig_bias.update_xaxes(type='category')
 fig_bias.update_layout(
-    height=350, showlegend=False, margin=dict(l=10,r=10,t=30,b=10),
-    paper_bgcolor='rgba(0,0,0
+    height=350, showlegend=False, margin=dict(l=10, r=10, t=30, b=10),
+    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+    yaxis=dict(title="", range=[0, max(percs) + 10 or 100], ticksuffix="%"),
+    xaxis=dict(title="")
+)
+st.plotly_chart(fig_bias, use_container_width=True)
+
+# Блок 3
+st.markdown("<hr>", unsafe_allow_html=True)
+st.subheader(f"Список ОО с маркерами ({sel_year})")
+
+bias_current = df_bias[df_bias['Год'] == sel_year].copy()
+if sel_mun != "Все":
+    bias_current = bias_current[bias_current['Муниципалитет'] == sel_mun]
+
+bias_current['num_markers'] = bias_current[marker_cols].sum(axis=1)
+bias_current['disciplines'] = bias_current.apply(
+    lambda row: ' '.join([marker_display.get(col, col) for col in marker_cols if col in row.index and row[col] == 1]), axis=1
+)
+
+display_df = bias_current[bias_current['num_markers'] > 0].copy()
+if not display_df.empty:
+    display_df = display_df.sort_values('num_markers', ascending=False)
+    display_df['МАРКЕРОВ'] = display_df['num_markers'].apply(lambda x: f"🔴 {int(x)}")
+    display_df = display_df.rename(columns={'ОО': 'НАИМЕНОВАНИЕ ОРГАНИЗАЦИИ', 'disciplines': 'ДИСЦИПЛИНЫ'})
+    display_df = display_df[['НАИМЕНОВАНИЕ ОРГАНИЗАЦИИ', 'МАРКЕРОВ', 'ДИСЦИПЛИНЫ']]
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    st.markdown(f"<div style='color:#D32F2F; font-weight:bold; text-align:right; margin-top:10px;'>Найдено школ: {len(display_df)}</div>", unsafe_allow_html=True)
+else:
+    st.info("Школы с маркерами не найдены")
+
+st.markdown('</div>', unsafe_allow_html=True)  # закрытие main-content
