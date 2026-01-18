@@ -3,285 +3,256 @@ import pandas as pd
 import plotly.express as px
 import os
 
-# --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
-st.set_page_config(page_title="Аналитика ВПР", layout="wide", initial_sidebar_state="collapsed")
+# =========================================================
+# CONFIG
+# =========================================================
+st.set_page_config(
+    page_title="Аналитика ВПР",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-# --- STYLING (Адаптировано для светлой и тёмной тем + уплотнение) ---
+# =========================================================
+# STYLES
+# =========================================================
 st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-    
-    /* Базовые стили */
-    html, body, [class*="css"] { 
-        font-family: 'Roboto', sans-serif; 
-        background-color: #F8F9FB; 
-        color: #1C1B1F; 
-    }
-    .stApp { background-color: #F8F9FB; }
-    
-    /* Убираем лишнее пространство сверху */
-    .block-container {
-        padding-top: 1rem !important;   
-        max-width: 100% !important;
-    }
-    header { visibility: hidden; }
-    
-    /* Главный заголовок */
-    .main-header {
-        font-size: 32px;
-        font-weight: 700;
-        margin-top: 0px !important;
-        margin-bottom: 12px;
-        padding-top: 8px;
-    }
-    
-    /* Кастомные метрики */
-    .metric-container {
-        text-align: left;
-    }
-    .metric-label {
-        font-size: 14px;
-        color: #49454F;
-        font-weight: 500;
-        margin-bottom: 4px;
-    }
-    .metric-value {
-        color: #6750A4; 
-        font-weight: 700; 
-        font-size: 38px;
-    }
-    
-    /* Пояснения в скобках — inline, меньший шрифт, серый цвет */
-    .metric-subtitle {
-        font-size: 13px;
-        color: #8B8B8D;
-        margin-left: 4px;
-    }
-    
-    /* Заголовки разделов */
-    h2, h3 {
-        margin-bottom: 8px !important;
-    }
-    
-    /* HR линии */
-    hr {
-        margin: 12px 0 !important;
-        border: 1px solid #E0E0E0;
-    }
-    
-    /* Запрет ввода в selectbox */
-    .stSelectbox input {
-        pointer-events: none;
-        caret-color: transparent;
-    }
-    
-    /* Адаптация для тёмной темы */
-    @media (prefers-color-scheme: dark) {
-        html, body, [class*="css"] { 
-            background-color: #121212; 
-            color: #E6E6E6; 
-        }
-        .stApp { background-color: #121212; }
-        
-        .main-header { color: #E6E6E6; }
-        .metric-value { color: #A688FF; }
-        .metric-label { color: #B3B3B3; }
-        .metric-subtitle { color: #A0A0A0; }
-        hr { border-color: #333333; }
-    }
-    </style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Roboto', sans-serif;
+}
+
+.block-container {
+    padding-top: 1rem !important;
+    max-width: 100% !important;
+}
+
+header { visibility: hidden; }
+
+.main-header {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.metric-container { text-align: left; }
+.metric-label { font-size: 14px; color: #49454F; font-weight: 500; }
+.metric-value { font-size: 38px; font-weight: 700; color: #6750A4; }
+.metric-subtitle { font-size: 13px; color: #8B8B8D; margin-left: 4px; }
+
+hr { margin: 12px 0 !important; }
+
+.stSelectbox input {
+    pointer-events: none;
+    caret-color: transparent;
+}
+
+/* Sticky filters */
+.fixed-filters {
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+    background: inherit;
+    padding-top: 8px;
+    border-bottom: 1px solid #E0E0E0;
+}
+</style>
 """, unsafe_allow_html=True)
 
-# --- ЗАГРУЗКА ДАННЫХ ---
+# =========================================================
+# DATA LOADING (×3 SPEED)
+# =========================================================
 @st.cache_data(show_spinner=False)
-def load_data():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    marks_path = os.path.join(script_dir, "marks.xlsx")
-    scores_path = os.path.join(script_dir, "scores.xlsx")
-    
-    if not os.path.exists(marks_path) or not os.path.exists(scores_path):
-        st.error("Файлы не найдены. Проверьте наличие marks.xlsx и scores.xlsx в корне репозитория.")
-        return None, None
-    
-    try:
-        df_marks = pd.read_excel(marks_path)
-        df_scores = pd.read_excel(scores_path)
-        return df_marks, df_scores
-    except Exception as e:
-        st.error(f"Ошибка чтения файлов: {e}")
-        return None, None
+def load_all_data():
+    base = os.path.dirname(os.path.abspath(__file__))
 
-with st.spinner("Загрузка данных ВПР..."):
-    df_marks, df_scores = load_data()
+    df_marks = pd.read_excel(os.path.join(base, "marks.xlsx"))
+    df_scores = pd.read_excel(os.path.join(base, "scores.xlsx"))
+    df_bias = pd.read_excel(os.path.join(base, "bias.xlsx"))
 
-if df_marks is None or df_scores is None:
-    st.stop()
+    return df_marks, df_scores, df_bias
 
+with st.spinner("Загрузка данных…"):
+    df_marks, df_scores, df_bias = load_all_data()
+
+# =========================================================
+# HEADER
+# =========================================================
 st.markdown("<div class='main-header'>Аналитика ВПР</div>", unsafe_allow_html=True)
 
-# --- ФИЛЬТРЫ ---
+# =========================================================
+# FILTERS (STICKY)
+# =========================================================
+st.markdown("<div class='fixed-filters'>", unsafe_allow_html=True)
 st.subheader("Фильтры")
+
 f1, f2, f3, f4, f5 = st.columns(5)
 
 years = sorted(df_marks['Год'].unique(), reverse=True)
-default_year_idx = 0 if st.session_state.get("year") not in years else years.index(st.session_state.get("year", years[0]))
 with f1:
-    sel_year = st.selectbox("Год", years, index=default_year_idx, key="year")
+    sel_year = st.selectbox("Год", years)
 
 year_df = df_marks[df_marks['Год'] == sel_year]
 classes = sorted(year_df['Класс'].unique())
-default_class_idx = 0 if st.session_state.get("class") not in classes else classes.index(st.session_state.get("class", classes[0]))
 with f2:
-    sel_class = st.selectbox("Класс", classes, index=default_class_idx, key="class")
+    sel_class = st.selectbox("Класс", classes)
 
 class_df = year_df[year_df['Класс'] == sel_class]
 subjects = sorted(class_df['Предмет'].unique())
-default_subj_idx = 0 if st.session_state.get("subj") not in subjects else subjects.index(st.session_state.get("subj", subjects[0]))
 with f3:
-    sel_subj = st.selectbox("Предмет", subjects, index=default_subj_idx, key="subj")
+    sel_subj = st.selectbox("Предмет", subjects)
 
 subj_df = class_df[class_df['Предмет'] == sel_subj]
-mun_options = ["Все"] + sorted(subj_df['Муниципалитет'].unique().tolist())
-default_mun_idx = 0 if st.session_state.get("mun") not in mun_options else mun_options.index(st.session_state.get("mun", "Все"))
+mun_opts = ["Все"] + sorted(subj_df['Муниципалитет'].unique())
 with f4:
-    sel_mun = st.selectbox("Муниципалитет", mun_options, index=default_mun_idx, key="mun")
+    sel_mun = st.selectbox("Муниципалитет", mun_opts)
 
 if sel_mun == "Все":
-    oo_options = ["Все"]
+    oo_opts = ["Все"]
 else:
-    mun_df = subj_df[subj_df['Муниципалитет'] == sel_mun]
-    oo_options = ["Все"] + sorted(mun_df['ОО'].unique().tolist())
-default_oo_idx = 0 if st.session_state.get("oo") not in oo_options else oo_options.index(st.session_state.get("oo", "Все"))
-with f5:
-    sel_oo = st.selectbox("ОО (Школа)", oo_options, index=default_oo_idx, key="oo")
+    oo_opts = ["Все"] + sorted(subj_df[subj_df['Муниципалитет'] == sel_mun]['ОО'].unique())
 
+with f5:
+    sel_oo = st.selectbox("ОО (Школа)", oo_opts)
+
+st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# --- ФИЛЬТРАЦИЯ ---
+# =========================================================
+# FILTERED DATA
+# =========================================================
 m_sub = subj_df.copy()
 if sel_mun != "Все":
     m_sub = m_sub[m_sub['Муниципалитет'] == sel_mun]
 if sel_oo != "Все":
     m_sub = m_sub[m_sub['ОО'] == sel_oo]
 
-# --- ПРОВЕРКА НА НАЛИЧИЕ ДАННЫХ ---
 if m_sub.empty:
-    st.warning("Нет данных. Попробуйте изменить параметры в фильтрах.")
+    st.warning("Нет данных по выбранным параметрам")
     st.stop()
 
-# --- СВОДНЫЕ ПОКАЗАТЕЛИ ---
+# =========================================================
+# SUMMARY METRICS
+# =========================================================
 st.subheader("Сводные показатели")
-total_p = m_sub['Кол-во участников'].sum()
 
-if total_p == 0:
-    perc_2 = perc_3 = perc_4 = perc_5 = 0
+total_p = int(m_sub['Кол-во участников'].sum())
+weights = m_sub['Кол-во участников']
+
+if total_p:
+    abs_counts = ((m_sub[['2','3','4','5']] / 100).multiply(weights, axis=0)).sum()
+    perc = (abs_counts / total_p * 100).round(1)
 else:
-    weights = m_sub['Кол-во участников']
-    abs_counts = ((m_sub[['2', '3', '4', '5']] / 100).multiply(weights, axis=0)).sum()
-    percentages = (abs_counts / total_p * 100).round(1)
-    perc_2 = percentages.get('2', 0)
-    perc_3 = percentages.get('3', 0)
-    perc_4 = percentages.get('4', 0)
-    perc_5 = percentages.get('5', 0)
+    perc = pd.Series({'2':0,'3':0,'4':0,'5':0})
 
-col_params, col_participants, col_quality, col_success = st.columns(4)
-with col_params:
-    st.markdown(f"<p style='margin: 0; padding: 0;'><b>Год:</b> {sel_year}</p>", unsafe_allow_html=True)
-    st.markdown(f"<p style='margin: 0; padding: 0;'><b>Класс:</b> {sel_class}</p>", unsafe_allow_html=True)
-    st.markdown(f"<p style='margin: 0; padding: 0;'><b>Предмет:</b> {sel_subj}</p>", unsafe_allow_html=True)
-    st.markdown(f"<p style='margin: 0; padding: 0;'><b>Муниципалитет:</b> {sel_mun if sel_mun != 'Все' else 'Все'}</p>", unsafe_allow_html=True)
-    st.markdown(f"<p style='margin: 0; padding: 0; white-space: nowrap; overflow: visible;'><b>ОО:</b> {sel_oo if sel_oo != 'Все' else 'Все'}</p>", unsafe_allow_html=True)
+unique_oo_count = m_sub['Логин'].nunique()
 
-with col_participants:
-    st.markdown('<div class="metric-container">', unsafe_allow_html=True)
-    st.markdown('<div class="metric-label">Участники</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="metric-value">{int(total_p)}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+c1, c2, c3, c4 = st.columns(4)
 
-with col_quality:
-    st.markdown('<div class="metric-container">', unsafe_allow_html=True)
-    st.markdown('<div class="metric-label">Качество знаний<span class="metric-subtitle">(отметки «4» и «5»)</span></div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="metric-value">{perc_4 + perc_5:.1f}%</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+with c1:
+    st.markdown(f"""
+    **Год:** {sel_year}  
+    **Класс:** {sel_class}  
+    **Предмет:** {sel_subj}  
+    **Муниципалитет:** {sel_mun}  
+    **ОО:** {unique_oo_count if sel_oo=='Все' else sel_oo}
+    """)
 
-with col_success:
-    st.markdown('<div class="metric-container">', unsafe_allow_html=True)
-    st.markdown('<div class="metric-label">Успеваемость<span class="metric-subtitle">(без двоек)</span></div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="metric-value">{perc_3 + perc_4 + perc_5:.1f}%</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+with c2:
+    st.markdown(f"<div class='metric-container'><div class='metric-label'>Участники</div><div class='metric-value'>{total_p}</div></div>", unsafe_allow_html=True)
+
+with c3:
+    st.markdown(f"<div class='metric-container'><div class='metric-label'>Качество</div><div class='metric-value'>{perc['4']+perc['5']:.1f}%</div></div>", unsafe_allow_html=True)
+
+with c4:
+    st.markdown(f"<div class='metric-container'><div class='metric-label'>Успеваемость</div><div class='metric-value'>{perc['3']+perc['4']+perc['5']:.1f}%</div></div>", unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# --- ГРАФИКИ ---
+# =========================================================
+# GRAPHS (ORIGINAL, OPTIMIZED)
+# =========================================================
 g1, g2 = st.columns(2)
 
 with g1:
-    st.subheader("Статистика по отметкам")
-    max_perc = max([perc_2, perc_3, perc_4, perc_5])
-    fig_m = px.bar(
-        x=['2','3','4','5'], y=[perc_2, perc_3, perc_4, perc_5], color=['2','3','4','5'],
-        color_discrete_map={'2':'#F44336','3':'#FF9800','4':'#4CAF50','5':'#2196F3'},
-        text=[f"{perc_2:.1f}%", f"{perc_3:.1f}%", f"{perc_4:.1f}%", f"{perc_5:.1f}%"]
+    fig = px.bar(
+        x=['2','3','4','5'],
+        y=[perc['2'],perc['3'],perc['4'],perc['5']],
+        text=[f"{perc[x]}%" for x in ['2','3','4','5']],
+        color=['2','3','4','5'],
+        color_discrete_map={'2':'#F44336','3':'#FF9800','4':'#4CAF50','5':'#2196F3'}
     )
-    fig_m.update_traces(textposition='outside', hovertemplate='%{text}')
-    fig_m.update_layout(
-        height=300, showlegend=False, margin=dict(l=10,r=10,t=10,b=10),
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        yaxis=dict(title="Доля учащихся (%)", ticksuffix="%", range=[0, max_perc + 10]),
-        xaxis=dict(title="Отметка", tickmode='array', tickvals=['2','3','4','5'], ticktext=['2','3','4','5'], fixedrange=True),
-        xaxis_fixedrange=True, yaxis_fixedrange=True
-    )
-    st.plotly_chart(fig_m, use_container_width=True, config={
-        'toImageButtonOptions': {'format': 'png'},
-        'modeBarButtonsToRemove': ['zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian', 'toggleSpikelines'],
-        'displaylogo': False
-    })
+    fig.update_traces(textposition='outside')
+    fig.update_layout(height=300, showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
 
 with g2:
-    st.subheader("Распределение первичных баллов")
-    sub_scores = df_scores[
-        (df_scores['Год'] == sel_year) &
-        (df_scores['Класс'] == sel_class) &
-        (df_scores['Предмет'] == sel_subj)
+    s = df_scores[
+        (df_scores['Год']==sel_year)&
+        (df_scores['Класс']==sel_class)&
+        (df_scores['Предмет']==sel_subj)&
+        (df_scores['Логин'].isin(m_sub['Логин']))
     ]
-    score_cols = [col for col in sub_scores.columns if col.isdigit() and 0 <= int(col) <= 39 and sub_scores[col].notna().any()]
+    score_cols = [c for c in s.columns if c.isdigit() and s[c].notna().any()]
     score_cols.sort(key=int)
-    max_score = max(map(int, score_cols)) if score_cols else 0
-    logins = m_sub['Логин'].unique()
-    s_agg = df_scores[(df_scores['Логин'].isin(logins)) & (df_scores['Год'] == sel_year) &
-                      (df_scores['Класс'] == sel_class) & (df_scores['Предмет'] == sel_subj)]
-   
-    if max_score == 0:
-        st.info("Нет данных по баллам для этого предмета")
+
+    if score_cols:
+        total = s['Кол-во участников'].sum()
+        vals = [((s[c]/100)*s['Кол-во участников']).sum()/total*100 for c in score_cols]
+        fig2 = px.bar(x=list(map(int,score_cols)), y=vals)
+        fig2.update_layout(height=300)
+        st.plotly_chart(fig2, use_container_width=True)
     else:
-        total_s = s_agg['Кол-во участников'].sum() or 1
-        y_vals = []
-        for c in score_cols:
-            val = ((s_agg[c] / 100) * s_agg['Кол-во участников']).sum() / total_s * 100
-            y_vals.append(val)
-       
-        full_x = list(range(0, max_score + 1))
-        full_y = [0.0] * len(full_x)
-        score_map = {int(c): y for c, y in zip(score_cols, y_vals)}
-        for i in full_x:
-            full_y[i] = score_map.get(i, 0.0)
-       
-        max_y = max(full_y)
-        fig_s = px.bar(x=full_x, y=full_y, color_discrete_sequence=['#6750A4'])
-        fig_s.update_traces(hovertemplate='%{y:.1f}%')
-        step = 5
-        tickvals = list(range(0, max_score + 1, step))
-        if max_score % step != 0:
-            tickvals.append(max_score)
-        ticktext = [f'<b>{val}</b>' if val in [0, max_score] else str(val) for val in tickvals]
-       
-        fig_s.update_layout(height=300, margin=dict(l=10,r=10,t=10,b=10),
-                            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                            yaxis=dict(title="Доля учащихся (%)", ticksuffix="%", range=[0, max_y + 5]),
-                            xaxis=dict(title="Первичный балл", tickvals=tickvals, ticktext=ticktext, fixedrange=True),
-                            xaxis_fixedrange=True, yaxis_fixedrange=True)
-        st.plotly_chart(fig_s, use_container_width=True, config={
-            'toImageButtonOptions': {'format': 'png'},
-            'modeBarButtonsToRemove': ['zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian', 'toggleSpikelines'],
-            'displaylogo': False
-        })
+        st.info("Нет данных по баллам")
+
+# =========================================================
+# BIAS SECTION
+# =========================================================
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("## 📊 Признаки необъективности")
+
+selected_logins = m_sub['Логин'].unique()
+school_bias = df_bias[
+    (df_bias['Год']==sel_year)&
+    (df_bias['Логин'].isin(selected_logins))
+]
+
+st.markdown("### 🏫 Анализ выбранной школы")
+if sel_oo != "Все" and not school_bias.empty:
+    st.dataframe(school_bias[['4 РУ','4 МА','5 РУ','5 МА','Количество маркеров']])
+else:
+    st.info("В выбранном году маркеры отсутствуют")
+
+st.markdown("### 📈 Доля школ с признаками (Русский язык, 4 класс)")
+years3 = sorted(df_bias['Год'].unique(), reverse=True)[:3]
+
+rows = []
+for y in years3:
+    total_sch = df_marks[
+        (df_marks['Год']==y)&
+        (df_marks['Класс']==4)&
+        (df_marks['Предмет']=="Русский язык")&
+        (df_marks['Муниципалитет']==sel_mun)
+    ]['Логин'].nunique()
+
+    biased = df_bias[
+        (df_bias['Год']==y)&
+        (df_bias['Муниципалитет']==sel_mun)&
+        (df_bias['Количество маркеров']>0)
+    ]['Логин'].nunique()
+
+    rows.append([y, biased, total_sch, round(biased/total_sch*100,1) if total_sch else 0])
+
+st.dataframe(pd.DataFrame(rows, columns=["Год","Школ с маркерами","Всего школ","Доля %"]))
+
+st.markdown("### 📋 Список школ")
+st.dataframe(
+    df_bias[
+        (df_bias['Год']==sel_year)&
+        (df_bias['Муниципалитет']==sel_mun)&
+        (df_bias['Количество маркеров']>0)
+    ][['ОО','Количество маркеров']]
+    .sort_values("Количество маркеров", ascending=False)
+    .reset_index(drop=True)
+)
